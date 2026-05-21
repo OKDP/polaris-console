@@ -17,6 +17,11 @@
 # under the License.
 #
 
+# Modified by OKDP contributors in 2026 for downstream distribution.
+# Changes:
+# - added extraEnv values to support additional Polaris Console runtime
+#   environment variables, including optional OIDC configuration.
+
 image:
   repository: apache/polaris-console
   tag: latest
@@ -34,6 +39,12 @@ env:
   polarisApiUrl: "http://polaris:8181"
   polarisRealm: "POLARIS"
   oauthTokenUrl: "http://polaris:8181/api/catalog/v1/oauth/tokens"
+
+extraEnv: {}
+  # VITE_OIDC_ISSUER_URL: http://localhost:8080/realms/EXTERNAL
+  # VITE_OIDC_CLIENT_ID: polaris-console
+  # VITE_OIDC_REDIRECT_URI: http://localhost:5173/auth/callback
+  # VITE_OIDC_SCOPE: "openid profile email"
 
 resources:
   limits:
