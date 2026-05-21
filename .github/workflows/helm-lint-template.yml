@@ -1,0 +1,148 @@
+#
+# Copyright 2026 The OKDP Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: helm lint, test and docs
+
+on:
+  workflow_call:
+    inputs:
+      image:
+        description: Image name
+        required: false
+        type: string
+        default: polaris-console
+      docker_image_tag:
+        description: Docker image tag to deploy during chart install tests
+        required: false
+        type: string
+        default: ""
+      skip_chart_test:
+        description: Whether to deploy and test the chart
+        required: false
+        type: boolean
+        default: false
+      ci_registry:
+        description: The registry used to pull ci images
+        required: false
+        type: string
+        default: ghcr.io
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  helm-lint-test-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup helm
+        uses: azure/setup-helm@v4.2.0
+        with:
+          version: v3.15.1
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install chart-testing lint dependencies
+        run: python -m pip install yamllint yamale
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Run chart-testing list-changed
+        id: list-changed
+        run: |
+          changed="$(ct list-changed --config .ct.yml)"
+          if [[ -n "${changed}" ]]; then
+            echo "list_changed=${changed//$'\n'/ }" >> "$GITHUB_OUTPUT"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Run chart-testing lint
+        if: steps.list-changed.outputs.changed == 'true'
+        run: ct lint --config .ct.yml --check-version-increment=false --print-config
+
+      - name: Set up kind cluster
+        if: steps.list-changed.outputs.changed == 'true' && inputs.skip_chart_test != true
+        uses: okdp/gh-workflows/.github/actions/setup-kind@v1
+
+      - name: Set CI image
+        if: steps.list-changed.outputs.changed == 'true' && inputs.skip_chart_test != true
+        run: |
+          if [[ -z "${{ inputs.docker_image_tag }}" ]]; then
+            echo "docker_image_tag input is required when chart install tests are enabled" >&2
+            exit 1
+          fi
+
+          echo "CI_TAG=${{ inputs.docker_image_tag }}" >> "$GITHUB_ENV"
+          echo "REGISTRY_REPO=${{ vars.CI_REGISTRY || inputs.ci_registry }}/${GITHUB_REPOSITORY_OWNER@L}" >> "$GITHUB_ENV"
+          echo "REGISTRY=${{ vars.CI_REGISTRY || inputs.ci_registry }}" >> "$GITHUB_ENV"
+
+      - name: Create CI registry secret
+        if: steps.list-changed.outputs.changed == 'true' && inputs.skip_chart_test != true
+        run: |
+          kubectl create secret docker-registry ci-registry-secret \
+            --docker-server="${REGISTRY}" \
+            --docker-username="${{ github.actor }}" \
+            --docker-password="${{ github.token }}" \
+            --docker-email="${{ github.actor }}@users.noreply.github.com" \
+            -n default
+
+      - name: Patch default service account with imagePullSecret
+        if: steps.list-changed.outputs.changed == 'true' && inputs.skip_chart_test != true
+        run: |
+          kubectl patch sa default \
+            -p '{"imagePullSecrets": [{"name": "ci-registry-secret"}]}' \
+            --namespace default
+
+      - name: Run chart-testing install
+        if: steps.list-changed.outputs.changed == 'true' && inputs.skip_chart_test != true
+        run: |
+          kubectl get events -A -w &
+          while true; do
+            echo "**************************************** Pods status ****************************************"
+            kubectl get po -A
+            sleep 15
+          done &
+
+          ct install --config .ct.yml --namespace default \
+            --helm-extra-set-args "--set=image.repository=${REGISTRY_REPO}/${{ inputs.image }} --set=image.tag=${CI_TAG} --set=image.pullPolicy=Always" \
+            --print-config
+
+      - name: Install helm-docs
+        uses: okdp/gh-workflows/.github/actions/helm-docs@v1
+
+      - name: Generate helm docs
+        run: helm-docs -c helm
+
+      - name: Commit helm docs changes
+        if: |
+          ${{ ((github.event_name == 'push') || (github.event_name == 'pull_request'
+                && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        uses: EndBug/add-and-commit@v9
+        with:
+          pull: "--rebase --autostash"
+          add: "**/README.md"
+          message: "[helm-docs] Update readme"
+          author_name: github-actions[bot]
+          author_email: 41898282+github-actions[bot]@users.noreply.github.com
