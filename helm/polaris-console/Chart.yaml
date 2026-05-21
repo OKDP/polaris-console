@@ -23,3 +23,7 @@ type: application
 description: Apache Polaris Console
 version: 0.1.0
 appVersion: "0.1.0"
+maintainers:
+  - email: idir.izitounene@kubotal.io
+    name: idirze
+    url: https://github.com/idirze

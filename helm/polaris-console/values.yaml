@@ -23,23 +23,37 @@
 #   environment variables, including optional OIDC configuration.
 
 image:
-  repository: apache/polaris-console
+  # -- Container image repository for Apache Polaris Console.
+  repository: quay.io/okdp/polaris-console
+  # -- Container image tag.
   tag: latest
+  # -- Kubernetes image pull policy.
   pullPolicy: IfNotPresent
+  # -- Image pull secrets used to pull the Polaris Console image.
   pullSecrets: []
 
+# -- Number of Polaris Console replicas.
 replicaCount: 1
 
 service:
+  # -- Kubernetes Service type.
   type: ClusterIP
+  # -- Kubernetes Service port exposed inside the cluster.
   port: 80
+  # -- Container port targeted by the Service.
   targetPort: 80
 
 env:
+  # -- Base URL used by the console to reach the Polaris API.
   polarisApiUrl: "http://polaris:8181"
+  # -- Polaris realm used by the console.
   polarisRealm: "POLARIS"
+  # -- Principal scope requested by the console when authenticating to Polaris.
+  polarisPrincipalScope: "PRINCIPAL_ROLE:ALL"
+  # -- OAuth token endpoint used by the console.
   oauthTokenUrl: "http://polaris:8181/api/catalog/v1/oauth/tokens"
 
+# -- Additional environment variables injected into the Polaris Console container.
 extraEnv: {}
   # VITE_OIDC_ISSUER_URL: http://localhost:8080/realms/EXTERNAL
   # VITE_OIDC_CLIENT_ID: polaris-console
@@ -48,39 +62,54 @@ extraEnv: {}
 
 resources:
   limits:
+    # -- CPU limit for the Polaris Console container.
     cpu: 500m
+    # -- Memory limit for the Polaris Console container.
     memory: 512Mi
   requests:
+    # -- CPU request for the Polaris Console container.
     cpu: 250m
+    # -- Memory request for the Polaris Console container.
     memory: 256Mi
 
 ingress:
+  # -- Enable Kubernetes Ingress for Polaris Console.
   enabled: false
+  # -- IngressClass name used by the Ingress.
   className: ""
+  # -- Additional annotations applied to the Ingress.
   annotations: {}
     # kubernetes.io/ingress.class: nginx
     # cert-manager.io/cluster-issuer: letsencrypt-prod
+  # -- Ingress host and path rules.
   hosts:
     - host: console.example.local
       paths:
         - path: /
           pathType: Prefix
+  # -- TLS configuration for the Ingress.
   tls: []
   #  - secretName: polaris-console-tls
   #    hosts:
   #      - console.example.local
 
 httproute:
+  # -- Enable Gateway API HTTPRoute for Polaris Console.
   enabled: false
+  # -- Additional annotations applied to the HTTPRoute.
   annotations: {}
+  # -- Backend Service port used by the HTTPRoute.
   port: 80
+  # -- Gateway API group used by the parent reference.
   gatewayGroup: gateway.networking.k8s.io
+  # -- Gateway API kind used by the parent reference.
   gatewayKind: Gateway
-  # Name of the httpGateway deployment
+  # -- Name of the parent Gateway.
   gatewayName: ""
-  # Namespace where the httpGateway is deployed
+  # -- Namespace of the parent Gateway.
   gatewayNamespace: default
-  # Section name within the gateway to use
+  # -- Section name within the parent Gateway.
   sectionName: ""
+  # -- Hostnames matched by the HTTPRoute.
   hosts:
     - example.local
