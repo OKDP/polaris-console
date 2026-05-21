@@ -1,0 +1,115 @@
+#
+# Copyright 2026 The OKDP Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: ci
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".ct.yml"
+      - ".github/actions/**"
+      - ".github/workflows/**"
+      - ".lintconf.yaml"
+      - "docker/**"
+      - "helm/**"
+      - "licenses/**"
+      - "LICENSE"
+      - "NOTICE"
+      - "release-please-config.json"
+      - ".release-please-manifest.json"
+  push:
+    branches:
+      - "**"
+    paths:
+      - ".ct.yml"
+      - ".github/actions/**"
+      - ".github/workflows/**"
+      - ".lintconf.yaml"
+      - "docker/**"
+      - "helm/**"
+      - "licenses/**"
+      - "LICENSE"
+      - "NOTICE"
+      - "release-please-config.json"
+      - ".release-please-manifest.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  image-tag:
+    name: docker-image-tag
+    runs-on: ubuntu-latest
+    outputs:
+      docker_image_tag: ${{ steps.docker-image-tag.outputs.docker_image_tag }}
+    steps:
+      - name: Get Git Branch Name
+        id: branch
+        uses: okdp/gh-workflows/.github/actions/git-branch@v1
+        with:
+          event_name: ${{ github.event_name }}
+          ref: ${{ github.ref }}
+          head_ref: ${{ github.head_ref }}
+
+      - name: Set Docker image tag
+        id: docker-image-tag
+        run: |
+          tag="$(printf '%s' "${{ steps.branch.outputs.branch }}" \
+            | tr '[:upper:]' '[:lower:]' \
+            | sed -E 's#[^a-z0-9_.-]+#-#g; s#^[^a-z0-9_]+##; s#[^a-z0-9_.-]+$##' \
+            | cut -c1-128)"
+
+          if [[ -z "${tag}" ]]; then
+            echo "Unable to derive a Docker image tag from branch '${{ steps.branch.outputs.branch }}'" >&2
+            exit 1
+          fi
+
+          echo "docker_image_tag=${tag}" >> "$GITHUB_OUTPUT"
+
+  docker:
+    name: docker-build-test-push
+    needs: [image-tag]
+    uses: ./.github/workflows/docker-build-test-push-template.yml
+    permissions:
+      contents: read
+      packages: write
+    with:
+      image: polaris-console
+      docker_image_tag: ${{ needs.image-tag.outputs.docker_image_tag }}
+      context: .
+      dockerfile: docker/Dockerfile
+
+  helm:
+    name: helm-lint-test-docs
+    needs: [image-tag, docker]
+    uses: ./.github/workflows/helm-lint-template.yml
+    permissions:
+      contents: write
+      packages: read
+    with:
+      image: polaris-console
+      docker_image_tag: ${{ needs.image-tag.outputs.docker_image_tag }}

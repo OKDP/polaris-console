@@ -1,0 +1,7 @@
+remote: origin
+target-branch: main
+lint-conf: .lintconf.yaml
+chart-dirs:
+  - helm
+validate-maintainers: false
+debug: false

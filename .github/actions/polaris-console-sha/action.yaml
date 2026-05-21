@@ -1,0 +1,49 @@
+#
+# Copyright 2026 The OKDP Authors.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+name: Parse Polaris Console SHA
+description: Reads the Apache Polaris Tools ref used to build the console image
+
+outputs:
+  upstream_sha:
+    description: Apache Polaris Tools git ref extracted from docker/polaris_console.sha
+    value: ${{ steps.read_polaris_console_sha.outputs.upstream_sha }}
+
+runs:
+  using: composite
+  steps:
+    - name: Read Polaris Console upstream SHA
+      id: read_polaris_console_sha
+      shell: bash
+      run: |
+        if [[ ! -f docker/polaris_console.sha ]]; then
+          echo "docker/polaris_console.sha is missing" >&2
+          exit 1
+        fi
+
+        upstream_sha="$(
+          sed -e 's/#.*//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' docker/polaris_console.sha \
+            | awk 'NF { print; exit }'
+        )"
+        upstream_sha="${upstream_sha#POLARIS_CONSOLE_SHA=}"
+
+        if [[ -z "${upstream_sha}" ]]; then
+          echo "docker/polaris_console.sha does not contain a Polaris Console upstream ref" >&2
+          exit 1
+        fi
+
+        echo "Parsed Polaris Console upstream ref: ${upstream_sha}"
+        echo "upstream_sha=${upstream_sha}" >> "$GITHUB_OUTPUT"
