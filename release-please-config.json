@@ -3,8 +3,8 @@
   "include-v-in-tag": true,
   "packages": {
     "helm/polaris-console": {
-      "component": "helm-okdp-polaris-console",
-      "initial-version": "0.1.0-1.0",
+      "component": "helm-polaris-console",
+      "initial-version": "0.1.0",
       "extra-label": "helm",
       "tag-separator": "/",
       "changelog-path": "CHANGELOG.md",
@@ -25,7 +25,7 @@
     },
     "docker": {
       "component": "okdp-polaris-console",
-      "initial-version": "0.1.0-1.0",
+      "initial-version": "0.1.0",
       "extra-label": "docker",
       "changelog-path": "CHANGELOG.md",
       "release-type": "simple",
