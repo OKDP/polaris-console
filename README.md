@@ -33,7 +33,7 @@ https://github.com/apache/polaris-tools/tree/main/console/helm
 Run the console:
 
 ```bash
-docker run --rm -p 8080:80 ghcr.io/okdp/polaris-console:<tag>
+docker run --rm -p 8080:80 quay.io/okdp/polaris-console:v0.1.0
 ```
 
 Configure the Polaris API endpoint:
@@ -44,7 +44,7 @@ docker run --rm -p 8080:80 \
   -e VITE_POLARIS_REALM="POLARIS" \
   -e VITE_POLARIS_PRINCIPAL_SCOPE="PRINCIPAL_ROLE:ALL" \
   -e VITE_OAUTH_TOKEN_URL="http://polaris:8181/api/catalog/v1/oauth/tokens" \
-  ghcr.io/okdp/polaris-console:<tag>
+  quay.io/okdp/polaris-console:v0.1.0
 ```
 
 Open:
@@ -65,8 +65,8 @@ Install with an image override:
 
 ```bash
 helm install polaris-console ./helm/polaris-console \
-  --set image.repository=ghcr.io/okdp/polaris-console \
-  --set image.tag=<tag>
+  --set image.repository=quay.io/okdp/polaris-console \
+  --set image.tag=v0.1.0
 ```
 
 Use a values file:
@@ -85,8 +85,8 @@ Example values:
 
 ```yaml
 image:
-  repository: ghcr.io/okdp/polaris-console
-  tag: <tag>
+  repository: quay.io/okdp/polaris-console
+  tag: v0.1.0
 
 env:
   polarisApiUrl: "http://polaris:8181"
@@ -108,8 +108,8 @@ OIDC example:
 
 ```yaml
 image:
-  repository: ghcr.io/okdp/polaris-console
-  tag: <tag>
+  repository: quay.io/okdp/polaris-console
+  tag: v0.1.0
 
 extraEnv:
   VITE_POLARIS_API_URL: "http://polaris:8181"
