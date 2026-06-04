@@ -108,6 +108,21 @@ jobs:
           echo "registry=${{ vars.REGISTRY || inputs.registry }}" >> "$GITHUB_OUTPUT"
           echo "registry_repo=${{ vars.REGISTRY || inputs.registry }}/${GITHUB_REPOSITORY_OWNER@L}" >> "$GITHUB_OUTPUT"
 
+      - name: Evaluate CI push policy
+        id: push-policy
+        run: |
+          can_push_ci=true
+
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            head_repo="$(jq -r '.pull_request.head.repo.full_name // ""' "$GITHUB_EVENT_PATH")"
+
+            if [[ "$head_repo" != "$GITHUB_REPOSITORY" ]]; then
+              can_push_ci=false
+            fi
+          fi
+
+          echo "can_push_ci=$can_push_ci" >> "$GITHUB_OUTPUT"
+
       - name: Set image tags
         id: image-tags
         run: |
@@ -139,7 +154,7 @@ jobs:
         run: echo "No Docker image tag was resolved. Skipping Docker build and publish."
 
       - name: Login into ${{ steps.registries.outputs.ci_registry }} registry
-        if: steps.image-tags.outputs.tag != ''
+        if: steps.image-tags.outputs.tag != '' && steps.push-policy.outputs.can_push_ci == 'true'
         uses: docker/login-action@v4
         with:
           registry: ${{ steps.registries.outputs.ci_registry }}
@@ -153,11 +168,11 @@ jobs:
           context: https://github.com/apache/polaris-tools.git#${{ steps.polaris_console_sh.outputs.upstream_sha }}:console
           file: docker/Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: true
+          push: ${{ steps.push-policy.outputs.can_push_ci == 'true' }}
           tags: ${{ steps.image-tags.outputs.ci_upstream_image }}
 
       - name: Build and push downstream OKDP image to CI registry
-        if: steps.image-tags.outputs.tag != ''
+        if: steps.image-tags.outputs.tag != '' && steps.push-policy.outputs.can_push_ci == 'true'
         uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.context }}
@@ -176,7 +191,7 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
 
       - name: Login into ${{ steps.registries.outputs.registry }} registry
-        if: inputs.publish_to_registry == true && steps.image-tags.outputs.tag != ''
+        if: inputs.publish_to_registry == true && steps.image-tags.outputs.tag != '' && steps.push-policy.outputs.can_push_ci == 'true'
         uses: docker/login-action@v4
         with:
           registry: ${{ steps.registries.outputs.registry }}
@@ -184,7 +199,7 @@ jobs:
           password: ${{ secrets.REGISTRY_ROBOT_TOKEN }}
 
       - name: Build and push downstream OKDP image to public registry
-        if: inputs.publish_to_registry == true && steps.image-tags.outputs.tag != ''
+        if: inputs.publish_to_registry == true && steps.image-tags.outputs.tag != '' && steps.push-policy.outputs.can_push_ci == 'true'
         uses: docker/build-push-action@v7
         with:
           context: ${{ inputs.context }}
