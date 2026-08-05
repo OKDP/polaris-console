@@ -40,8 +40,9 @@ service:
   type: ClusterIP
   # -- Kubernetes Service port exposed inside the cluster.
   port: 80
-  # -- Container port targeted by the Service.
-  targetPort: 80
+  # -- Container port targeted by the Service. The console nginx listens on the
+  # unprivileged port 8080 so it can bind as a non-root user.
+  targetPort: 8080
 
 env:
   # -- Base URL used by the console to reach the Polaris API.
