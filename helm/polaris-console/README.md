@@ -43,7 +43,7 @@ Apache Polaris Console
 | resources.requests.cpu | string | `"250m"` | CPU request for the Polaris Console container. |
 | resources.requests.memory | string | `"256Mi"` | Memory request for the Polaris Console container. |
 | service.port | int | `80` | Kubernetes Service port exposed inside the cluster. |
-| service.targetPort | int | `80` | Container port targeted by the Service. |
+| service.targetPort | int | `8080` | Container port targeted by the Service. The console nginx listens on the unprivileged port 8080 so it can bind as a non-root user. |
 | service.type | string | `"ClusterIP"` | Kubernetes Service type. |
 
 ----------------------------------------------
