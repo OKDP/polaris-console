@@ -21,7 +21,7 @@ apiVersion: v2
 name: polaris-console
 type: application
 description: Apache Polaris Console
-version: 0.1.0
+version: 0.2.0
 appVersion: "0.1.0"
 maintainers:
   - email: idir.izitounene@kubotal.io
