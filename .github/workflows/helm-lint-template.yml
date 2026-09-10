@@ -136,9 +136,7 @@ jobs:
         run: helm-docs -c helm
 
       - name: Commit helm docs changes
-        if: |
-          ${{ ((github.event_name == 'push') || (github.event_name == 'pull_request'
-                && github.event.pull_request.head.repo.full_name == github.repository)) }}
+        if: github.event_name == 'push'
         uses: EndBug/add-and-commit@v9
         with:
           pull: "--rebase --autostash"
