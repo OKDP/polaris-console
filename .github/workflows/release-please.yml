@@ -23,6 +23,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      helm_version:
+        description: Chart version of an existing release to publish again, for example 0.2.0. Leave empty to only run release-please.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -73,14 +78,17 @@ jobs:
 
   helm-chart-publish:
     needs: [release-please]
-    if: github.repository_owner == 'OKDP' && needs.release-please.outputs.helm-release_created == 'true'
+    if: |
+      github.repository_owner == 'OKDP' &&
+      (needs.release-please.outputs.helm-release_created == 'true' || inputs.helm_version != '')
     uses: okdp/gh-workflows/.github/workflows/helm-publish-template.yml@v1
+    # The template edits the GitHub release and uploads the chart to it.
     permissions:
-      contents: read
+      contents: write
       packages: write
     with:
       path: helm/polaris-console
       chart_name: polaris-console
-      version: ${{ needs.release-please.outputs.helm-version }}
-      git_tag_name: ${{ needs.release-please.outputs.helm-tag_name }}
+      version: ${{ inputs.helm_version || needs.release-please.outputs.helm-version }}
+      git_tag_name: ${{ inputs.helm_version && format('helm-polaris-console/v{0}', inputs.helm_version) || needs.release-please.outputs.helm-tag_name }}
     secrets: inherit
